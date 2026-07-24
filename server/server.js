@@ -3,6 +3,8 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
+const protect = require("./middleware/authMiddleware")
+const authorizeRoles = require("./middleware/roleMiddleware")
 dotenv.config();
 connectDB();
 
@@ -22,7 +24,18 @@ app.get("/api/health", (req, res) => {
     status: "ok",
   });
 });
-
+app.get("/api/protected",protect, (req,res)=>{
+  res.json({
+    message:"you accepted a protected route",
+    user:req.user,
+  })
+})
+app.get("/api/admin-only",protect, authorizeRoles("admin"),(req,res)=>{
+  res.json({
+    message:"welcome Admin",
+    user:req.user,
+  })
+})
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
