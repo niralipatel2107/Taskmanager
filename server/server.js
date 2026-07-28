@@ -6,7 +6,7 @@ const connectDB = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const protect = require("./middleware/authMiddleware");
 const authorizeRoles = require("./middleware/roleMiddleware");
-
+const issueRoutes = require("./routes/issueRoutes");
 // Load values from .env into process.env.
 dotenv.config();
 
@@ -28,7 +28,7 @@ app.use(express.json());
 
 // Any route that starts with /api/auth will use the routes from authRoutes.js.
 app.use("/api/auth", authRoutes);
-
+app.use("/api/issues",issueRoutes);
 // Simple home route to confirm the backend is running.
 app.get("/", (req, res) => {
   res.send("Team Issue Tracker backend is running");
