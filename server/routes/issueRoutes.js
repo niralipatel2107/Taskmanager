@@ -38,4 +38,14 @@ router.post("/", protect, async (req, res) => {
   }
 });
 
+router.get("/", protect, async (req, res) => {
+  try {
+    const issues = await Issue.find().sort({ createdAt: -1 });
+
+    res.status(200).json(issues);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;
