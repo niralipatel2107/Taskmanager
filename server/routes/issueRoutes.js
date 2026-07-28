@@ -47,5 +47,22 @@ router.get("/", protect, async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+router.get("/:id",protect, async(req,res)=>{
+    try{
+const issueId = req.params.id;
+const issue = await Issue.findById(issueId);
 
+if(!issue){
+    return res.status(404).json({
+        message:"Issue not found",
+    })
+}
+    } catch(error){
+        if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "Invalid issue id",
+      });
+    }
+    }
+})
 module.exports = router;
