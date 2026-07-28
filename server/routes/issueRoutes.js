@@ -138,4 +138,56 @@ router.put("/:id", protect, async (req, res) => {
     });
   }
 });
+// Delete one issue by id.
+// Only logged-in users can access this route.
+router.delete("/:id", protect, async (req, res) => {
+  try {
+    // Get the issue id from the URL.
+    const issueId = req.params.id;
+
+    // Find the issue first so we can:
+    // 1. check if it exists
+    // 2. check if user is allowed to delete it
+    const issue = await Issue.findById(issueId);
+
+    // If issue does not exist, send 404.
+    if (!issue) {
+      return res.status(404).json({
+        message: "Issue not found",
+      });
+    }
+
+    // Allow delete only if:
+    // 1. logged-in user created this issue
+    // 2. or logged-in user is admin
+    if (
+      issue.createdBy.toString() !== req.user.userId &&
+      req.user.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "You are not allowed to delete this issue",
+      });
+    }
+
+    // Delete the issue from MongoDB.
+    await issue.deleteOne();
+
+    // Send success message after deletion.
+    res.status(200).json({
+      message: "Issue deleted successfully",
+    });
+  } catch (error) {
+    // If id format is invalid, send 400.
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        message: "Invalid issue id",
+      });
+    }
+
+    // Any other unexpected error comes here.
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
 module.exports = router;
