@@ -40,7 +40,10 @@ router.post("/", protect, async (req, res) => {
 
 router.get("/", protect, async (req, res) => {
     try {
-        const issues = await Issue.find().sort({ createdAt: -1 });
+        const issues = await Issue.find()
+            .populate("createdBy", "name email role")
+            .populate("assignedTo", "name email role")
+            .sort({ createdAt: -1 });
 
         res.status(200).json(issues);
     } catch (error) {
@@ -50,7 +53,8 @@ router.get("/", protect, async (req, res) => {
 router.get("/:id", protect, async (req, res) => {
     try {
         const issueId = req.params.id;
-        const issue = await Issue.findById(issueId);
+        const issue = await Issue.findById(issueId).populate("createdBy", "name email role")
+  .populate("assignedTo", "name email role");
 
         if (!issue) {
             return res.status(404).json({
@@ -69,125 +73,125 @@ router.get("/:id", protect, async (req, res) => {
 // Update one issue by id.
 // Only logged-in users can access this route.
 router.put("/:id", protect, async (req, res) => {
-  try {
-    // Get the id from the URL.
-    const issueId = req.params.id;
+    try {
+        // Get the id from the URL.
+        const issueId = req.params.id;
 
-    // Get updated values from request body.
-    const { title, description, status, priority, assignedTo } = req.body;
+        // Get updated values from request body.
+        const { title, description, status, priority, assignedTo } = req.body;
 
-    // Find the issue in MongoDB first.
-    const issue = await Issue.findById(issueId);
+        // Find the issue in MongoDB first.
+        const issue = await Issue.findById(issueId);
 
-    // If no issue exists with this id, send 404.
-    if (!issue) {
-      return res.status(404).json({
-        message: "Issue not found",
-      });
+        // If no issue exists with this id, send 404.
+        if (!issue) {
+            return res.status(404).json({
+                message: "Issue not found",
+            });
+        }
+
+        // Allow update only if:
+        // 1. logged-in user created this issue
+        // 2. or logged-in user is admin
+        if (
+            issue.createdBy.toString() !== req.user.userId &&
+            req.user.role !== "admin"
+        ) {
+            return res.status(403).json({
+                message: "You are not allowed to update this issue",
+            });
+        }
+
+        // Update only the fields that were sent in the request.
+        if (title !== undefined) {
+            issue.title = title;
+        }
+
+        if (description !== undefined) {
+            issue.description = description;
+        }
+
+        if (status !== undefined) {
+            issue.status = status;
+        }
+
+        if (priority !== undefined) {
+            issue.priority = priority;
+        }
+
+        if (assignedTo !== undefined) {
+            issue.assignedTo = assignedTo;
+        }
+
+        // Save updated issue in MongoDB.
+        const updatedIssue = await issue.save();
+
+        // Send updated issue back to client.
+        res.status(200).json(updatedIssue);
+    } catch (error) {
+        // If id format is wrong, send 400.
+        if (error.name === "CastError") {
+            return res.status(400).json({
+                message: "Invalid issue id",
+            });
+        }
+
+        // Any other error comes here.
+        res.status(500).json({
+            message: error.message,
+        });
     }
-
-    // Allow update only if:
-    // 1. logged-in user created this issue
-    // 2. or logged-in user is admin
-    if (
-      issue.createdBy.toString() !== req.user.userId &&
-      req.user.role !== "admin"
-    ) {
-      return res.status(403).json({
-        message: "You are not allowed to update this issue",
-      });
-    }
-
-    // Update only the fields that were sent in the request.
-    if (title !== undefined) {
-      issue.title = title;
-    }
-
-    if (description !== undefined) {
-      issue.description = description;
-    }
-
-    if (status !== undefined) {
-      issue.status = status;
-    }
-
-    if (priority !== undefined) {
-      issue.priority = priority;
-    }
-
-    if (assignedTo !== undefined) {
-      issue.assignedTo = assignedTo;
-    }
-
-    // Save updated issue in MongoDB.
-    const updatedIssue = await issue.save();
-
-    // Send updated issue back to client.
-    res.status(200).json(updatedIssue);
-  } catch (error) {
-    // If id format is wrong, send 400.
-    if (error.name === "CastError") {
-      return res.status(400).json({
-        message: "Invalid issue id",
-      });
-    }
-
-    // Any other error comes here.
-    res.status(500).json({
-      message: error.message,
-    });
-  }
 });
 // Delete one issue by id.
 // Only logged-in users can access this route.
 router.delete("/:id", protect, async (req, res) => {
-  try {
-    // Get the issue id from the URL.
-    const issueId = req.params.id;
+    try {
+        // Get the issue id from the URL.
+        const issueId = req.params.id;
 
-    // Find the issue first so we can:
-    // 1. check if it exists
-    // 2. check if user is allowed to delete it
-    const issue = await Issue.findById(issueId);
+        // Find the issue first so we can:
+        // 1. check if it exists
+        // 2. check if user is allowed to delete it
+        const issue = await Issue.findById(issueId);
 
-    // If issue does not exist, send 404.
-    if (!issue) {
-      return res.status(404).json({
-        message: "Issue not found",
-      });
+        // If issue does not exist, send 404.
+        if (!issue) {
+            return res.status(404).json({
+                message: "Issue not found",
+            });
+        }
+
+        // Allow delete only if:
+        // 1. logged-in user created this issue
+        // 2. or logged-in user is admin
+        if (
+            issue.createdBy.toString() !== req.user.userId &&
+            req.user.role !== "admin"
+        ) {
+            return res.status(403).json({
+                message: "You are not allowed to delete this issue",
+            });
+        }
+
+        // Delete the issue from MongoDB.
+        await issue.deleteOne();
+
+        // Send success message after deletion.
+        res.status(200).json({
+            message: "Issue deleted successfully",
+        });
+    } catch (error) {
+        // If id format is invalid, send 400.
+        if (error.name === "CastError") {
+            return res.status(400).json({
+                message: "Invalid issue id",
+            });
+        }
+
+        // Any other unexpected error comes here.
+        res.status(500).json({
+            message: error.message,
+        });
     }
-
-    // Allow delete only if:
-    // 1. logged-in user created this issue
-    // 2. or logged-in user is admin
-    if (
-      issue.createdBy.toString() !== req.user.userId &&
-      req.user.role !== "admin"
-    ) {
-      return res.status(403).json({
-        message: "You are not allowed to delete this issue",
-      });
-    }
-
-    // Delete the issue from MongoDB.
-    await issue.deleteOne();
-
-    // Send success message after deletion.
-    res.status(200).json({
-      message: "Issue deleted successfully",
-    });
-  } catch (error) {
-    // If id format is invalid, send 400.
-    if (error.name === "CastError") {
-      return res.status(400).json({
-        message: "Invalid issue id",
-      });
-    }
-
-    // Any other unexpected error comes here.
-    res.status(500).json({
-      message: error.message,
-    });
-  }
 });
 module.exports = router;
